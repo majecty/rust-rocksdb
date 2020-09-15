@@ -20,9 +20,9 @@ use std::ptr;
 use std::slice;
 
 #[cfg(test)]
-use rocksdb_options::Options;
+use rocksdb::{DBVector, Writable, DB};
 #[cfg(test)]
-use rocksdb::{DB, DBVector, Writable};
+use rocksdb_options::Options;
 
 pub struct MergeOperatorCallback {
     pub name: CString,
@@ -32,7 +32,6 @@ pub struct MergeOperatorCallback {
 pub extern "C" fn destructor_callback(raw_cb: *mut c_void) {
     // turn this back into a local variable so rust will reclaim it
     let _: Box<MergeOperatorCallback> = unsafe { mem::transmute(raw_cb) };
-
 }
 
 pub extern "C" fn name_callback(raw_cb: *mut c_void) -> *const c_char {
@@ -44,27 +43,32 @@ pub extern "C" fn name_callback(raw_cb: *mut c_void) -> *const c_char {
     }
 }
 
-pub extern "C" fn full_merge_callback(raw_cb: *mut c_void,
-                                      raw_key: *const c_char,
-                                      key_len: size_t,
-                                      existing_value: *const c_char,
-                                      existing_value_len: size_t,
-                                      operands_list: *const *const c_char,
-                                      operands_list_len: *const size_t,
-                                      num_operands: c_int,
-                                      success: *mut u8,
-                                      new_value_length: *mut size_t)
-                                      -> *const c_char {
+pub extern "C" fn full_merge_callback(
+    raw_cb: *mut c_void,
+    raw_key: *const c_char,
+    key_len: size_t,
+    existing_value: *const c_char,
+    existing_value_len: size_t,
+    operands_list: *const *const c_char,
+    operands_list_len: *const size_t,
+    num_operands: c_int,
+    success: *mut u8,
+    new_value_length: *mut size_t,
+) -> *const c_char {
     unsafe {
         let cb: &mut MergeOperatorCallback =
             &mut *(raw_cb as *mut MergeOperatorCallback);
-        let operands = &mut MergeOperands::new(operands_list,
-                                               operands_list_len,
-                                               num_operands);
-        let key: &[u8] = slice::from_raw_parts(raw_key as *const u8,
-                                               key_len as usize);
-        let oldval: &[u8] = slice::from_raw_parts(existing_value as *const u8,
-                                                  existing_value_len as usize);
+        let operands = &mut MergeOperands::new(
+            operands_list,
+            operands_list_len,
+            num_operands,
+        );
+        let key: &[u8] =
+            slice::from_raw_parts(raw_key as *const u8, key_len as usize);
+        let oldval: &[u8] = slice::from_raw_parts(
+            existing_value as *const u8,
+            existing_value_len as usize,
+        );
         let mut result = (cb.merge_fn)(key, Some(oldval), operands);
         result.shrink_to_fit();
         // TODO(tan) investigate zero-copy techniques to improve performance
@@ -77,23 +81,26 @@ pub extern "C" fn full_merge_callback(raw_cb: *mut c_void,
     }
 }
 
-pub extern "C" fn partial_merge_callback(raw_cb: *mut c_void,
-                                         raw_key: *const c_char,
-                                         key_len: size_t,
-                                         operands_list: *const *const c_char,
-                                         operands_list_len: *const size_t,
-                                         num_operands: c_int,
-                                         success: *mut u8,
-                                         new_value_length: *mut size_t)
-                                         -> *const c_char {
+pub extern "C" fn partial_merge_callback(
+    raw_cb: *mut c_void,
+    raw_key: *const c_char,
+    key_len: size_t,
+    operands_list: *const *const c_char,
+    operands_list_len: *const size_t,
+    num_operands: c_int,
+    success: *mut u8,
+    new_value_length: *mut size_t,
+) -> *const c_char {
     unsafe {
         let cb: &mut MergeOperatorCallback =
             &mut *(raw_cb as *mut MergeOperatorCallback);
-        let operands = &mut MergeOperands::new(operands_list,
-                                               operands_list_len,
-                                               num_operands);
-        let key: &[u8] = slice::from_raw_parts(raw_key as *const u8,
-                                               key_len as usize);
+        let operands = &mut MergeOperands::new(
+            operands_list,
+            operands_list_len,
+            num_operands,
+        );
+        let key: &[u8] =
+            slice::from_raw_parts(raw_key as *const u8, key_len as usize);
         let mut result = (cb.merge_fn)(key, None, operands);
         result.shrink_to_fit();
         // TODO(tan) investigate zero-copy techniques to improve performance
@@ -106,7 +113,6 @@ pub extern "C" fn partial_merge_callback(raw_cb: *mut c_void,
     }
 }
 
-
 pub struct MergeOperands {
     operands_list: *const *const c_char,
     operands_list_len: *const size_t,
@@ -115,10 +121,11 @@ pub struct MergeOperands {
 }
 
 impl MergeOperands {
-    fn new(operands_list: *const *const c_char,
-           operands_list_len: *const size_t,
-           num_operands: c_int)
-           -> MergeOperands {
+    fn new(
+        operands_list: *const *const c_char,
+        operands_list_len: *const size_t,
+        num_operands: c_int,
+    ) -> MergeOperands {
         assert!(num_operands >= 0);
         MergeOperands {
             operands_list: operands_list,
@@ -144,8 +151,10 @@ impl<'a> Iterator for &'a mut MergeOperands {
                 let len = *len_ptr as usize;
                 let ptr = base + (spacing * self.cursor);
                 self.cursor += 1;
-                Some(mem::transmute(slice::from_raw_parts(*(ptr as *const *const u8)
-                        as *const u8, len)))
+                Some(mem::transmute(slice::from_raw_parts(
+                    *(ptr as *const *const u8) as *const u8,
+                    len,
+                )))
             },
         }
     }
@@ -159,10 +168,11 @@ impl<'a> Iterator for &'a mut MergeOperands {
 #[allow(unused_variables)]
 #[allow(dead_code)]
 #[cfg(test)]
-fn test_provided_merge(new_key: &[u8],
-                       existing_val: Option<&[u8]>,
-                       operands: &mut MergeOperands)
-                       -> Vec<u8> {
+fn test_provided_merge(
+    new_key: &[u8],
+    existing_val: Option<&[u8]>,
+    operands: &mut MergeOperands,
+) -> Vec<u8> {
     let nops = operands.size_hint().0;
     let mut result: Vec<u8> = Vec::with_capacity(nops);
     match existing_val {
@@ -185,8 +195,8 @@ fn test_provided_merge(new_key: &[u8],
 #[test]
 
 fn mergetest() {
+    use rocksdb::{DBVector, Writable, DB};
     use rocksdb_options::Options;
-    use rocksdb::{DB, DBVector, Writable};
 
     let path = "_rust_rocksdb_mergetest";
     let mut opts = Options::new();
@@ -203,12 +213,10 @@ fn mergetest() {
         let m = db.merge(b"k1", b"h");
         assert!(m.is_ok());
         match db.get(b"k1") {
-            Ok(Some(value)) => {
-                match value.to_utf8() {
-                    Some(v) => println!("retrieved utf8 value: {}", v),
-                    None => println!("did not read valid utf-8 out of the db"),
-                }
-            }
+            Ok(Some(value)) => match value.to_utf8() {
+                Some(v) => println!("retrieved utf8 value: {}", v),
+                None => println!("did not read valid utf-8 out of the db"),
+            },
             Err(e) => println!("error reading value"),
             _ => panic!("value not present"),
         }

@@ -1,6 +1,6 @@
-use rocksdb::{DB, Options, Writable};
-use std::thread;
+use rocksdb::{Options, Writable, DB};
 use std::sync::Arc;
+use std::thread;
 
 const N: usize = 100_000;
 

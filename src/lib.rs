@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-extern crate rocksdb_sys;
 extern crate local_encoding;
+extern crate rocksdb_sys;
 
-pub use rocksdb_sys::rocksdb_ffi as rocksdb_ffi;
-pub use rocksdb_ffi::{DBCompactionStyle, DBComparator, new_bloom_filter};
-pub use rocksdb::{DB, DBIterator, DBVector, Direction, IteratorMode, Writable,
-                  WriteBatch, Column, ReadOptions};
-pub use rocksdb_options::{BlockBasedOptions, Options, WriteOptions, IndexType, Cache};
 pub use merge_operator::MergeOperands;
+pub use rocksdb::{
+    Column, DBIterator, DBVector, Direction, IteratorMode, ReadOptions,
+    Writable, WriteBatch, DB,
+};
+pub use rocksdb_ffi::{new_bloom_filter, DBCompactionStyle, DBComparator};
+pub use rocksdb_options::{
+    BlockBasedOptions, Cache, IndexType, Options, WriteOptions,
+};
+pub use rocksdb_sys::rocksdb_ffi;
+pub mod comparator;
+pub mod merge_operator;
 pub mod rocksdb;
 pub mod rocksdb_options;
-pub mod merge_operator;
-pub mod comparator;

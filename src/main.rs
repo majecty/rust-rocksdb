@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 extern crate rocksdb;
-use rocksdb::{DB, MergeOperands, Options, Writable};
+use rocksdb::{MergeOperands, Options, Writable, DB};
 
 // fn snapshot_test() {
 //    let path = "_rust_rocksdb_iteratortest";
@@ -51,12 +51,10 @@ fn main() {
     let db = DB::open_default(path).unwrap();
     assert!(db.put(b"my key", b"my value").is_ok());
     match db.get(b"my key") {
-        Ok(Some(value)) => {
-            match value.to_utf8() {
-                Some(v) => println!("retrieved utf8 value: {}", v),
-                None => println!("did not read valid utf-8 out of the db"),
-            }
-        }
+        Ok(Some(value)) => match value.to_utf8() {
+            Some(v) => println!("retrieved utf8 value: {}", v),
+            None => println!("did not read valid utf-8 out of the db"),
+        },
         Ok(None) => panic!("value not present!"),
         Err(e) => println!("error retrieving value: {}", e),
     }
@@ -66,10 +64,11 @@ fn main() {
     custom_merge();
 }
 
-fn concat_merge(_: &[u8],
-                existing_val: Option<&[u8]>,
-                operands: &mut MergeOperands)
-                -> Vec<u8> {
+fn concat_merge(
+    _: &[u8],
+    existing_val: Option<&[u8]>,
+    operands: &mut MergeOperands,
+) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::with_capacity(operands.size_hint().0);
     match existing_val {
         Some(v) => {
@@ -101,12 +100,10 @@ fn custom_merge() {
         db.merge(b"k1", b"efg").unwrap();
         db.merge(b"k1", b"h").unwrap();
         match db.get(b"k1") {
-            Ok(Some(value)) => {
-                match value.to_utf8() {
-                    Some(v) => println!("retrieved utf8 value: {}", v),
-                    None => println!("did not read valid utf-8 out of the db"),
-                }
-            }
+            Ok(Some(value)) => match value.to_utf8() {
+                Some(v) => println!("retrieved utf8 value: {}", v),
+                None => println!("did not read valid utf-8 out of the db"),
+            },
             Ok(None) => panic!("value not present!"),
             Err(e) => println!("error retrieving value: {}", e),
         }
@@ -129,27 +126,25 @@ fn main() {
         db.merge(b"k1", b"efg");
         db.merge(b"k1", b"h");
         db.get(b"k1")
-          .map(|value| {
-              match value.to_utf8() {
-                  Some(v) => (),
-                  None => panic!("value corrupted"),
-              }
-          })
-          .or_else(|e| panic!("error retrieving value: {}", e));
+            .map(|value| match value.to_utf8() {
+                Some(v) => (),
+                None => panic!("value corrupted"),
+            })
+            .or_else(|e| panic!("error retrieving value: {}", e));
         db.delete(b"k1");
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use rocksdb::{BlockBasedOptions, DB, Options};
     use rocksdb::DBCompactionStyle::DBUniversalCompaction;
+    use rocksdb::{BlockBasedOptions, Options, DB};
 
-    fn tuned_for_somebody_elses_disk(path: &str,
-                                     opts: &mut Options,
-                                     blockopts: &mut BlockBasedOptions)
-                                     -> DB {
+    fn tuned_for_somebody_elses_disk(
+        path: &str,
+        opts: &mut Options,
+        blockopts: &mut BlockBasedOptions,
+    ) -> DB {
         opts.create_if_missing(true);
         opts.set_max_open_files(10000);
         opts.set_use_fsync(false);
