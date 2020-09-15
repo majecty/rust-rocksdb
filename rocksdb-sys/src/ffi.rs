@@ -111,6 +111,8 @@ pub fn error_message(ptr: *const i8) -> String {
 // instead...
 #[link(name = "rocksdb")]
 extern "C" {
+    pub fn rocksdb_options_enable_statistics(opts: DBOptions);
+    pub fn rocksdb_options_statistics_get_string(opts: DBOptions) -> *const c_char;
     pub fn rocksdb_options_create() -> DBOptions;
     pub fn rocksdb_options_destroy(opts: DBOptions);
     pub fn rocksdb_cache_create_lru(capacity: size_t) -> DBCache;

@@ -14,6 +14,7 @@
 //
 extern crate libc;
 use self::libc::{c_int, size_t};
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::mem;
 
@@ -37,6 +38,9 @@ pub struct BlockBasedOptions {
 pub struct Options {
     pub inner: rocksdb_ffi::DBOptions,
 }
+
+unsafe impl Send for Options {}
+unsafe impl Sync for Options {}
 
 pub struct WriteOptions {
     pub inner: rocksdb_ffi::DBWriteOptions,
@@ -164,6 +168,20 @@ impl Options {
                 panic!("Could not create rocksdb options".to_string());
             }
             Options { inner: opts }
+        }
+    }
+
+    pub fn enable_statistics(&mut self) {
+        unsafe {
+            rocksdb_ffi::rocksdb_options_enable_statistics(self.inner);
+        }
+    }
+
+    pub fn print_statistics(&mut self) -> String {
+        unsafe {
+            let c_str_pointer =
+                rocksdb_ffi::rocksdb_options_statistics_get_string(self.inner);
+            CStr::from_ptr(c_str_pointer).to_string_lossy().into_owned()
         }
     }
 
